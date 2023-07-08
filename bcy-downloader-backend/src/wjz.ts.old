@@ -1,0 +1,122 @@
+import { Context, Schema, h } from "koishi";
+import puppeteer from "puppeteer";
+import { pathToFileURL } from "url";
+
+export const name = "banciyuan";
+
+export interface Config {}
+
+export const Config: Schema<Config> = Schema.object({});
+
+export function apply(ctx: Context) {
+  ctx
+    .command("nt <url:string>")
+    .action(async (argv, url) => backupBanCiYuan(argv, url));
+  ctx.command("ping").action(async (argv) => pong(argv));
+}
+
+async function backupBanCiYuan(argv, url: string) {
+  url = url.trim().replace(/[^\x20-\x7E]/g, "");
+  let type = "none";
+  if (url.startsWith("https://bcy.net/item/detail")) {
+    type = "detail";
+  }
+  if (url.startsWith("https://bcy.net/group/list")) {
+    type = "list";
+  }
+  if (url.startsWith("https://bcy.net/collection")) {
+    type = "collection";
+  }
+  console.log(type + ":" + url);
+  if (type === "none") {
+    return;
+  }
+
+  const session = argv.session;
+  const onebot = session.onebot;
+
+  const browser = await puppeteer.launch({
+    headless: true,
+    //slowMo: 400, // slow down by 250ms
+  });
+  const page = await browser.newPage();
+  await page.goto(url);
+
+  let title = "";
+  let filename = "";
+  if (type === "detail") {
+    page.click(".show-more");
+    page.click(".load-more-comment");
+    await sleep(600);
+    page.click(".show-more");
+    //const showMore= await page.waitForSelector('.show-more');
+    //await showMore?.click();
+
+    const match = url.match(/https:\/\/bcy\.net\/item\/detail\/(.+)/);
+    if (match) {
+      filename = `detail_${match[1]}`;
+    } else {
+      return;
+    }
+    title = await page.evaluate(() => {
+      return document.querySelector(".question-title")?.textContent;
+    });
+  }
+  if (type === "list") {
+    const match = url.match(/https:\/\/bcy\.net\/group\/list\/(.+)/);
+    if (match) {
+      filename = `list_${match[1]}`;
+    } else {
+      return;
+    }
+    title = await page.evaluate(() => {
+      return document.querySelector(".group-title-txt")?.textContent;
+    });
+  }
+  if (type === "collection") {
+    const match = url.match(/https:\/\/bcy\.net\/collection\/(.+)/);
+    if (match) {
+      filename = `collection_${match[1]}`;
+    } else {
+      return;
+    }
+    title = await page.evaluate(() => {
+      return document.querySelector(".collect-detail-name")?.textContent;
+    });
+  }
+  if (!filename) {
+    return;
+  }
+  const index = filename.indexOf("?");
+  filename = index >= 0 ? filename.substring(0, index) : filename;
+
+  let savePath = `saved/${filename}.png`;
+  await page.screenshot({
+    path: savePath,
+    fullPage: true,
+  });
+  await browser.close();
+
+  title = title || "";
+  return title + h.image(pathToFileURL(savePath).href);
+}
+
+async function pong(argv) {
+  const session = argv.session;
+  const onebot = session.onebot;
+  console.log(session);
+  /*  onebot.sendGuildChannelMsg(*/
+  /*session.guildid,*/
+  /*session.channelid,*/
+  /*h.quote(session.messageid) + "pong",*/
+  /*);*/
+  //console.log(onebot);
+  //console.log(onebot.getGuildList());
+  return "pong";
+  return h.image("https://oss.talesofai.cn/public/qrcode_20230413-183818.png");
+  return "[CQ:image,file=https://oss.talesofai.cn/public/qrcode_20230413-183818.png,type=show,id=40004]";
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
