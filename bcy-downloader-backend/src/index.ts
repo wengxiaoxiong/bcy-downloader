@@ -1,8 +1,10 @@
 import express from "express";
 import puppeteer from "puppeteer";
 import { pathToFileURL } from "url";
+import * as dotEnv from "dotenv-flow";
 
-const dotenv = require("dotenv");
+// import doten
+dotEnv.config();
 
 const app = express();
 
@@ -40,15 +42,21 @@ app.all("*", function (req, res, next) {
 
 app.use(express.json());
 
-
 var oss = require("ali-oss");
 const multer = require("multer");
 
+const region = process.env.OSS_REGION;
+const accessKeyId = process.env.OSS_ACCESS_KEY_ID;
+const accessKeySecret = process.env.OSS_ACCESS_KEY_SECRET;
+const bucket = process.env.OSS_BUCKET;
+
 var ossClient = new oss({
-  accessKeyId: OSS_ACCESS_KEY_ID,
-  accessKeySecret: OSS_ACCESS_KEY_SECRET,
-  region: OSS_REGION,
-  bucket: OSS_BUCKET,
+  // yourRegion填写Bucket所在地域。以华东1（杭州）为例，Region填写为oss-cn-hangzhou。
+  region,
+  // 阿里云账号AccessKey拥有所有API的访问权限，风险很高。强烈建议您创建并使用RAM用户进行API访问或日常运维，请登录RAM控制台创建RAM用户。
+  accessKeyId,
+  accessKeySecret,
+  bucket,
 });
 
 const PORT = 3001;
@@ -158,5 +166,5 @@ function sleep(ms: number): Promise<void> {
 }
 
 app.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT} ${OSS_BUCKET}`);
+  console.log(`Server listening on port ${PORT} ${bucket}`);
 });
